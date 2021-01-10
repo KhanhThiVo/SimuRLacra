@@ -26,9 +26,13 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import numpy as np
-from init_args_serializer.serializable import Serializable
+# my stuff
+import math
+import pathlib
 
+import numpy as np
+
+from init_args_serializer.serializable import Serializable
 from pyrado.environments.pysim.base import SimPyEnv
 from pyrado.spaces.box import BoxSpace
 from pyrado.spaces.discrete import DiscreteSpace
@@ -36,7 +40,6 @@ from pyrado.spaces.compound import CompoundSpace
 from pyrado.tasks.base import Task
 from pyrado.tasks.reward_functions import ScaledExpQuadrErrRewFcn
 from pyrado.tasks.desired_state import DesStateTask
-
 
 class BallOnBeamSim(SimPyEnv, Serializable):
     """
@@ -129,6 +132,7 @@ class BallOnBeamSim(SimPyEnv, Serializable):
         self.state[:2] += self.state[2:] * self._dt  # next position
 
     def _reset_anim(self):
+        print("reset called")
         import vpython as vp
 
         r_ball = self.domain_param["r_ball"]
@@ -137,13 +141,13 @@ class BallOnBeamSim(SimPyEnv, Serializable):
 
         self._anim["ball"].pos = vp.vec(
             float(self.state[0]),
-            vp.sin(self.state[1]) * float(self.state[0]) + vp.cos(self.state[1]) * d_beam / 2.0 + r_ball,
+            math.sin(self.state[1]) * float(self.state[0]) + math.cos(self.state[1]) * d_beam / 2.0 + r_ball,
             0,
         )
         self._anim["beam"].visible = False
         self._anim["beam"] = vp.box(
             pos=vp.vec(0, 0, 0),
-            axis=vp.vec(vp.cos(float(self.state[1])), vp.sin(float(self.state[1])), 0),
+            axis=vp.vec(math.cos(float(self.state[1])), math.sin(float(self.state[1])), 0),
             length=l_beam,
             height=d_beam,
             width=2 * d_beam,
@@ -152,31 +156,52 @@ class BallOnBeamSim(SimPyEnv, Serializable):
         )
 
     def _init_anim(self):
-        import vpython as vp
-
         r_ball = self.domain_param["r_ball"]
         l_beam = self.domain_param["l_beam"]
         d_beam = self.domain_param["d_beam"]
         x = float(self.state[0])  # ball position along the beam axis [m]
         a = float(self.state[1])  # angle [rad]
 
-        self._anim["canvas"] = vp.canvas(width=800, height=600, title="Ball on Beam")
-        self._anim["ball"] = vp.sphere(
-            pos=vp.vec(x, d_beam / 2.0 + r_ball, 0), radius=r_ball, color=vp.color.red, canvas=self._anim["canvas"]
-        )
-        self._anim["beam"] = vp.box(
-            pos=vp.vec(0, 0, 0),
-            axis=vp.vec(vp.cos(a), vp.sin(a), 0),
-            length=l_beam,
-            height=d_beam,
-            width=2 * d_beam,
-            color=vp.color.green,
-            canvas=self._anim["canvas"],
-        )
+        # Get the location of the 'py' file I'm running:
+        mydir = str(pathlib.Path(__file__).parent.absolute())
+
+        self.panda_vis = PandaVis()
+
+        self.panda_vis._beam = self.panda_vis.loader.loadModel(mydir + "/box.egg")
+        self.panda_vis._beam.setPos(0,10,0)
+        self.panda_vis._beam.setScale(l_beam, 2*d_beam, d_beam)
+        self.panda_vis._beam.setColor(0, 1, 0, 0)
+        self.panda_vis._beam.reparentTo(self.panda_vis.render)
+
+        self.panda_vis._ball = self.panda_vis.loader.loadModel(mydir + "/ball.egg")
+        self.panda_vis._ball.setPos(x, 10, d_beam / 2.0 + r_ball)
+        self.panda_vis._ball.setScale(2*r_ball, 2*r_ball, 2*r_ball)
+        self.panda_vis._ball.setColor(1, 0, 0, 0)
+        self.panda_vis._ball.reparentTo(self.panda_vis.render)
+
+        self._initiated = True
+
+        # import vpython as vp
+
+        # self._anim["canvas"] = vp.canvas(width=800, height=600, title="Ball on Beam")
+        # self._anim["ball"] = vp.sphere(
+        #     pos=vp.vec(x, d_beam / 2.0 + r_ball, 0),
+        #     radius=r_ball,
+        #     color=vp.color.red,
+        #     canvas=self._anim["canvas"]
+        # )
+        # self._anim["beam"] = vp.box(
+        #     pos=vp.vec(0, 0, 0),
+        #     axis=vp.vec(math.cos(a), math.sin(a), 0),
+        #     length=l_beam,
+        #     height=d_beam,
+        #     width=2 * d_beam,
+        #     color=vp.color.green,
+        #     canvas=self._anim["canvas"],
+        # )
+
 
     def _update_anim(self):
-        import vpython as vp
-
         g = self.domain_param["g"]
         m_ball = self.domain_param["m_ball"]
         r_ball = self.domain_param["r_ball"]
@@ -188,29 +213,61 @@ class BallOnBeamSim(SimPyEnv, Serializable):
         x = float(self.state[0])  # ball position along the beam axis [m]
         a = float(self.state[1])  # angle [rad]
 
-        # Update the animation
-        self._anim["ball"].radius = r_ball
-        self._anim["ball"].pos = vp.vec(
-            vp.cos(a) * x - vp.sin(a) * (d_beam / 2.0 + r_ball), vp.sin(a) * x + vp.cos(a) * (d_beam / 2.0 + r_ball), 0
-        )
-        self._anim["beam"].size = vp.vec(l_beam, d_beam, 2 * d_beam)
-        self._anim["beam"].rotate(angle=float(self.state[3]) * self._dt, axis=vp.vec(0, 0, 1), origin=vp.vec(0, 0, 0))
+        def update(self, task):
+            #self.panda_vis._ball.setScale(2*r_ball, 2*r_ball, 2*r_ball)
+            #self.panda_vis._ball.setPos(0, math.sin(a) * x + math.cos(a) * (d_beam / 2.0 + r_ball), math.cos(a) * x - math.sin(a) * (d_beam / 2.0 + r_ball))
 
-        # Set caption text
-        self._anim[
-            "canvas"
-        ].caption = f"""
-                    dt: {self._dt : 1.4f}
-                    g: {g : 1.3f}
-                    m_ball: {m_ball: 1.2f}
-                    r_ball: {r_ball : 1.3f}
-                    m_beam: {m_beam : 1.2f}
-                    l_beam: {l_beam : 1.2f}
-                    d_beam: {d_beam : 1.2f}
-                    c_frict: {c_frict : 1.3f}
-                    ang_offset: {ang_offset : 1.3f}
-                    """
+            #self.panda_vis._beam.setScale(l_beam, 2*d_beam, d_beam)
+            #self._anim["beam"].rotate(angle=float(self.state[3]) * self._dt, axis=vp.vec(0, 0, 1), origin=vp.vec(0, 0, 0))
+            self.panda_vis._beam.setR(task.time*20)
+            return task.cont
+            #self.panda_vis.taskMgr.add(self.panda_vis.update, "update")
 
+        self.panda_vis.taskMgr.add(self.panda_vis.update, "update")
+        self.panda_vis.run()
+        # # Update the animation
+        # self._anim["ball"].radius = r_ball
+        # self._anim["ball"].pos = vp.vec(
+        #     math.cos(a) * x - math.sin(a) * (d_beam / 2.0 + r_ball), math.sin(a) * x + math.cos(a) * (d_beam / 2.0 + r_ball), 0
+        # )
+        # self._anim["beam"].size = vp.vec(l_beam, d_beam, 2 * d_beam)
+        # self._anim["beam"].rotate(angle=float(self.state[3]) * self._dt, axis=vp.vec(0, 0, 1), origin=vp.vec(0, 0, 0))
+        #
+        # # Set caption text
+        # self._anim[
+        #     "canvas"
+        # ].caption = f"""
+        #             dt: {self._dt : 1.4f}
+        #             g: {g : 1.3f}
+        #             m_ball: {m_ball: 1.2f}
+        #             r_ball: {r_ball : 1.3f}
+        #             m_beam: {m_beam : 1.2f}
+        #             l_beam: {l_beam : 1.2f}
+        #             d_beam: {d_beam : 1.2f}
+        #             c_frict: {c_frict : 1.3f}
+        #             ang_offset: {ang_offset : 1.3f}
+        #             """
+
+from panda3d.core import loadPrcFileData
+
+confVars = """
+win-size 800 600
+window-title Ball on Beam
+framebuffer-multisample 1
+multisamples 2
+"""
+loadPrcFileData("", confVars)
+
+from direct.showbase.ShowBase import ShowBase
+
+class PandaVis(ShowBase):
+    def _init_(self):
+        super().__init__()
+
+        self.render.setAntialias(AntialiasAttrib.MAuto)
+
+    def update(self, task):
+        print("Hallo")
 
 class BallOnBeamDiscSim(BallOnBeamSim, Serializable):
     """ Ball-on-beam simulation environment with discrete actions """
