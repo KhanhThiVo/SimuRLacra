@@ -162,22 +162,45 @@ class BallOnBeamSim(SimPyEnv, Serializable):
         x = float(self.state[0])  # ball position along the beam axis [m]
         a = float(self.state[1])  # angle [rad]
 
-        # Get the location of the 'py' file I'm running:
-        mydir = str(pathlib.Path(__file__).parent.absolute())
+        from panda3d.core import loadPrcFileData
+
+        confVars = """
+        win-size 800 600
+        window-title Ball on Beam
+        framebuffer-multisample 1
+        multisamples 2
+        """
+        loadPrcFileData("", confVars)
+
+        from direct.showbase.ShowBase import ShowBase
+
+        class PandaVis(ShowBase):
+            def _init_(self):
+                super().__init__()
+
+                self.render.setAntialias(AntialiasAttrib.MAuto)
+
+                # Get the location of the 'py' file I'm running:
+                mydir = str(pathlib.Path(__file__).parent.absolute())
+                print("was here")
+                print(self)
+
+                self._beam = self.loader.loadModel(mydir + "/box.egg")
+                self._beam.setPos(0,10,0)
+                self._beam.setScale(l_beam, 2*d_beam, d_beam)
+                self._beam.setColor(0, 1, 0, 0)
+                self._beam.reparentTo(self.render)
+
+                self._ball = self.loader.loadModel(mydir + "/ball.egg")
+                self._ball.setPos(x, 10, d_beam / 2.0 + r_ball)
+                self._ball.setScale(2*r_ball, 2*r_ball, 2*r_ball)
+                self._ball.setColor(1, 0, 0, 0)
+                self._ball.reparentTo(self.render)
+
+            def update(self, task):
+                print("Hallo")
 
         self.panda_vis = PandaVis()
-
-        self.panda_vis._beam = self.panda_vis.loader.loadModel(mydir + "/box.egg")
-        self.panda_vis._beam.setPos(0,10,0)
-        self.panda_vis._beam.setScale(l_beam, 2*d_beam, d_beam)
-        self.panda_vis._beam.setColor(0, 1, 0, 0)
-        self.panda_vis._beam.reparentTo(self.panda_vis.render)
-
-        self.panda_vis._ball = self.panda_vis.loader.loadModel(mydir + "/ball.egg")
-        self.panda_vis._ball.setPos(x, 10, d_beam / 2.0 + r_ball)
-        self.panda_vis._ball.setScale(2*r_ball, 2*r_ball, 2*r_ball)
-        self.panda_vis._ball.setColor(1, 0, 0, 0)
-        self.panda_vis._ball.reparentTo(self.panda_vis.render)
 
         self._initiated = True
 
@@ -247,27 +270,6 @@ class BallOnBeamSim(SimPyEnv, Serializable):
         #             c_frict: {c_frict : 1.3f}
         #             ang_offset: {ang_offset : 1.3f}
         #             """
-
-from panda3d.core import loadPrcFileData
-
-confVars = """
-win-size 800 600
-window-title Ball on Beam
-framebuffer-multisample 1
-multisamples 2
-"""
-loadPrcFileData("", confVars)
-
-from direct.showbase.ShowBase import ShowBase
-
-class PandaVis(ShowBase):
-    def _init_(self):
-        super().__init__()
-
-        self.render.setAntialias(AntialiasAttrib.MAuto)
-
-    def update(self, task):
-        print("Hallo")
 
 class BallOnBeamDiscSim(BallOnBeamSim, Serializable):
     """ Ball-on-beam simulation environment with discrete actions """
