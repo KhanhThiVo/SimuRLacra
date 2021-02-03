@@ -201,7 +201,6 @@ class QCartPoleSim(SimPyEnv, Serializable):
         self.state[:2] += self.state[2:] * self._dt  # next position
 
     def _init_anim(self):
-        import vpython as vp
         from direct.showbase.ShowBase import ShowBase
         from direct.task import Task
         from panda3d.core import loadPrcFileData, DirectionalLight, AntialiasAttrib, TextNode, AmbientLight, WindowProperties
@@ -239,6 +238,7 @@ class QCartPoleSim(SimPyEnv, Serializable):
 
                 self.setBackgroundColor(0, 0, 0)
                 self.cam.setY(-5)
+                self.cam.setH(0)
                 self.render.setAntialias(AntialiasAttrib.MAuto)
                 self.windowProperties = WindowProperties()
                 self.windowProperties.setForeground(True)
@@ -247,7 +247,7 @@ class QCartPoleSim(SimPyEnv, Serializable):
                 self.directionalLight = DirectionalLight('directionalLight')
                 self.directionalLightNP = self.render.attachNewNode(self.directionalLight)
                 self.directionalLightNP.setHpr(0, -8, 0)
-                # self.directionalLightNP.setPos(0, 8, 0)
+                self.directionalLightNP.setPos(0, 8, 0)
                 self.render.setLight(self.directionalLightNP)
 
                 self.ambientLight = AmbientLight('ambientLight')
@@ -275,20 +275,20 @@ class QCartPoleSim(SimPyEnv, Serializable):
                 self.cart = self.loader.loadModel(pathlib.Path(mydir, "box.egg"))
                 self.cart.setPos(x, 0, 0)
                 self.cart.setScale(l_cart, h_cart/2, h_cart)
-                self.cart.setColor(0, 1, 0) #green
+                self.cart.setColor(0, 1, 0, 0) #green
                 self.cart.reparentTo(self.render)
 
                 #Joint
                 self.joint = self.loader.loadModel(pathlib.Path(mydir, "ball.egg"))
                 self.joint.setPos(x, r_pole + h_cart/4, 0)
                 self.joint.setScale(r_pole, r_pole, r_pole)
-                self.joint.setColor(0, 0, 0) #white
+                self.joint.setColor(0, 0, 0, 1) #white
                 self.joint.reparentTo(self.render)
 
                 #Pole
                 self.pole = self.loader.loadModel(pathlib.Path(mydir, "cylinder_shifted_center.egg"))
-                self.pole.setPos(x, r_pole + h_cart/4, -l_pole)
-                self.pole.setHpr(2 * l_pole * np.sin(th), -2 * l_pole * np.cos(th), 0)
+                self.pole.setPos(x, r_pole + h_cart/4, 0)
+                self.pole.setHpr(0, 0, 0)
                 #H um Z-Achse, P um X-Achse, R um Y-Achse
                 self.pole.setScale(r_pole, r_pole, 2*l_pole)
                 self.pole.setColor(0, 0, 1) #blue
@@ -321,32 +321,20 @@ class QCartPoleSim(SimPyEnv, Serializable):
                 # Get positions
                 x, th, _, _ = self.qcp.state
 
-                # Rail sollte doch eigentlich fest bleiben?!
+                # Rail
                 self.rail.setX(-l_rail / 2)
                 self.rail.setSz(l_rail)
 
                 #Cart
-                #self._anim["cart"].pos = vp.vec(x, 0, 0)
                 self.cart.setX(x)
 
                 #Joint
-                #self._anim["joint"].pos = vp.vec(x, 0, r_pole + h_cart / 4)
                 self.joint.setX(x)
 
                 #Pole
-                #self._anim["pole"].pos = vp.vec(x, 0, r_pole + h_cart / 4)
                 self.pole.setX(x)
-                #Original
-                #self._anim["pole"].axis = vp.vec(2 * l_pole * vp.sin(th), -2 * l_pole * vp.cos(th), 0)
 
-                #Übersetzung 1:1
-                #self.pole.setHpr(2 * l_pole * np.sin(th) *180/np.pi, 0, -2 * l_pole * vp.cos(th) *180/np.pi)
-
-                self.pole.setR(-th * 180/np.pi )
-
-                #Vertauschte P-R-Achsen
-                #self.pole.setHpr(2 * l_pole * np.sin(th) *180/np.pi, -2 * l_pole * np.cos(th) *180/np.pi, 0)
-                print(th)
+                self.pole.setR(-th * 180/np.pi +180)
 
                 self.text.setText(f"""
                                     th: {th}
@@ -381,7 +369,6 @@ class QCartPoleSim(SimPyEnv, Serializable):
 
     def _update_anim(self):
         self._visualization.taskMgr.step()
-        #import vpython as vp
 
 
         '''
