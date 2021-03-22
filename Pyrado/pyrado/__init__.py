@@ -46,7 +46,7 @@ HPARAM_DIR = osp.join(osp.dirname(__file__), "..", "data", "perma", "hyperparams
 TEMP_DIR = osp.join(osp.dirname(__file__), "..", "data", "temp")
 MUJOCO_ASSETS_DIR = osp.join(osp.dirname(__file__), "environments", "mujoco", "assets")
 PANDA_ASSETS_DIR = osp.join(osp.dirname(__file__), "environments", "pysim", "assets")
-if name == 'nt':
+if name == "nt":
     RENDER_PIPELINE_DIR = osp.join(osp.relpath(__file__), "..", "..", "..", "thirdParty", "RenderPipeline")
 else:
     RENDER_PIPELINE_DIR = osp.join(osp.dirname(__file__), "..", "..", "thirdParty", "RenderPipeline")
